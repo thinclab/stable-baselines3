@@ -678,9 +678,10 @@ class ActorCriticPolicy(BasePolicy):
         :param actions:
         :return: likelihood of taking those actions
         """
+
         # latent_pi, latent_vf, latent_sde = self._get_latent(obs) 
         # distribution = self._get_action_dist_from_latent(latent_pi, latent_sde) 
-        
+
         features = self.extract_features(obs)
         latent_pi = self.mlp_extractor.forward_actor(features)
         distribution = self._get_action_dist_from_latent(latent_pi) 
