@@ -1,29 +1,31 @@
+import os
+import time
 from typing import Sequence
+from unittest import mock
 
+import gym
 import numpy as np
 import pytest
 import torch as th
+from matplotlib import pyplot as plt
 from pandas.errors import EmptyDataError
 
+from stable_baselines3 import A2C, DQN
 from stable_baselines3.common.logger import (
     DEBUG,
+    INFO,
+    CSVOutputFormat,
+    Figure,
     FormatUnsupportedError,
-    ScopedConfigure,
+    HumanOutputFormat,
+    Image,
+    Logger,
+    TensorBoardOutputFormat,
     Video,
     configure,
-    debug,
-    dump,
-    error,
-    info,
     make_output_format,
     read_csv,
     read_json,
-    record,
-    record_dict,
-    record_mean,
-    reset,
-    set_level,
-    warn,
 )
 
 KEY_VALUES = {
@@ -34,6 +36,7 @@ KEY_VALUES = {
     "a": np.array([1, 2, 3]),
     "f": np.array(1),
     "g": np.array([[[1]]]),
+    "h": 'this ", ;is a \n tes:,t',
 }
 
 KEY_EXCLUDED = {}
@@ -95,39 +98,83 @@ def read_log(tmp_path, capsys):
     return read_fn
 
 
+def test_set_logger(tmp_path):
+    # set up logger
+    new_logger = configure(str(tmp_path), ["stdout", "csv", "tensorboard"])
+    # Default outputs with verbose=0
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=0).learn(4)
+    assert model.logger.output_formats == []
+
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=0, tensorboard_log=str(tmp_path)).learn(4)
+    assert str(tmp_path) in model.logger.dir
+    assert isinstance(model.logger.output_formats[0], TensorBoardOutputFormat)
+
+    # Check that env variable work
+    new_tmp_path = str(tmp_path / "new_tmp")
+    os.environ["SB3_LOGDIR"] = new_tmp_path
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=0).learn(4)
+    assert model.logger.dir == new_tmp_path
+
+    # Default outputs with verbose=1
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=1).learn(4)
+    assert isinstance(model.logger.output_formats[0], HumanOutputFormat)
+    # with tensorboard
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=1, tensorboard_log=str(tmp_path)).learn(4)
+    assert isinstance(model.logger.output_formats[0], HumanOutputFormat)
+    assert isinstance(model.logger.output_formats[1], TensorBoardOutputFormat)
+    assert len(model.logger.output_formats) == 2
+    model.learn(32)
+    # set new logger
+    model.set_logger(new_logger)
+    # Check that the new logger is correctly setup
+    assert isinstance(model.logger.output_formats[0], HumanOutputFormat)
+    assert isinstance(model.logger.output_formats[1], CSVOutputFormat)
+    assert isinstance(model.logger.output_formats[2], TensorBoardOutputFormat)
+    assert len(model.logger.output_formats) == 3
+    model.learn(32)
+
+    model = A2C("MlpPolicy", "CartPole-v1", verbose=1)
+    model.set_logger(new_logger)
+    model.learn(32)
+    # Check that the new logger is not overwritten
+    assert isinstance(model.logger.output_formats[0], HumanOutputFormat)
+    assert isinstance(model.logger.output_formats[1], CSVOutputFormat)
+    assert isinstance(model.logger.output_formats[2], TensorBoardOutputFormat)
+    assert len(model.logger.output_formats) == 3
+
+
 def test_main(tmp_path):
     """
     tests for the logger module
     """
-    info("hi")
-    debug("shouldn't appear")
-    set_level(DEBUG)
-    debug("should appear")
-    configure(folder=str(tmp_path))
-    record("a", 3)
-    record("b", 2.5)
-    dump()
-    record("b", -2.5)
-    record("a", 5.5)
-    dump()
-    info("^^^ should see a = 5.5")
-    record_mean("b", -22.5)
-    record_mean("b", -44.4)
-    record("a", 5.5)
-    dump()
-    with ScopedConfigure(None, None):
-        info("^^^ should see b = 33.3")
+    logger = configure(None, ["stdout"])
+    logger.info("hi")
+    logger.debug("shouldn't appear")
+    assert logger.level == INFO
+    logger.set_level(DEBUG)
+    assert logger.level == DEBUG
+    logger.debug("should appear")
+    logger = configure(folder=str(tmp_path))
+    assert logger.dir == str(tmp_path)
+    logger.record("a", 3)
+    logger.record("b", 2.5)
+    logger.dump()
+    logger.record("b", -2.5)
+    logger.record("a", 5.5)
+    logger.dump()
+    logger.info("^^^ should see a = 5.5")
+    logger.record("f", "this text \n \r should appear in one line")
+    logger.dump()
+    logger.info('^^^ should see f = "this text \n \r should appear in one line"')
+    logger.record_mean("b", -22.5)
+    logger.record_mean("b", -44.4)
+    logger.record("a", 5.5)
+    logger.dump()
 
-    with ScopedConfigure(str(tmp_path / "test-logger"), ["json"]):
-        record("b", -2.5)
-        dump()
-
-    reset()
-    record("a", "longasslongasslongasslongasslongasslongassvalue")
-    dump()
-    warn("hey")
-    error("oh")
-    record_dict({"test": 1})
+    logger.record("a", "longasslongasslongasslongasslongasslongassvalue")
+    logger.dump()
+    logger.warn("hey")
+    logger.error("oh")
 
 
 @pytest.mark.parametrize("_format", ["stdout", "log", "json", "csv", "tensorboard"])
@@ -156,6 +203,7 @@ def test_make_output_fail(tmp_path):
 
 
 @pytest.mark.parametrize("_format", ["stdout", "log", "json", "csv", "tensorboard"])
+@pytest.mark.filterwarnings("ignore:Tried to write empty key-value dict")
 def test_exclude_keys(tmp_path, read_log, _format):
     if _format == "tensorboard":
         # Skip if no tensorboard installed
@@ -198,3 +246,152 @@ def test_report_video_to_unsupported_format_raises_error(tmp_path, unsupported_f
         writer.write({"video": video}, key_excluded={"video": ()})
     assert unsupported_format in str(exec_info.value)
     writer.close()
+
+
+def test_report_image_to_tensorboard(tmp_path, read_log):
+    pytest.importorskip("tensorboard")
+
+    image = Image(image=th.rand(16, 16, 3), dataformats="HWC")
+    writer = make_output_format("tensorboard", tmp_path)
+    writer.write({"image": image}, key_excluded={"image": ()})
+
+    assert not read_log("tensorboard").empty
+    writer.close()
+
+
+@pytest.mark.parametrize("unsupported_format", ["stdout", "log", "json", "csv"])
+def test_report_image_to_unsupported_format_raises_error(tmp_path, unsupported_format):
+    writer = make_output_format(unsupported_format, tmp_path)
+
+    with pytest.raises(FormatUnsupportedError) as exec_info:
+        image = Image(image=th.rand(16, 16, 3), dataformats="HWC")
+        writer.write({"image": image}, key_excluded={"image": ()})
+    assert unsupported_format in str(exec_info.value)
+    writer.close()
+
+
+def test_report_figure_to_tensorboard(tmp_path, read_log):
+    pytest.importorskip("tensorboard")
+
+    fig = plt.figure()
+    fig.add_subplot().plot(np.random.random(3))
+    figure = Figure(figure=fig, close=True)
+    writer = make_output_format("tensorboard", tmp_path)
+    writer.write({"figure": figure}, key_excluded={"figure": ()})
+
+    assert not read_log("tensorboard").empty
+    writer.close()
+
+
+@pytest.mark.parametrize("unsupported_format", ["stdout", "log", "json", "csv"])
+def test_report_figure_to_unsupported_format_raises_error(tmp_path, unsupported_format):
+    writer = make_output_format(unsupported_format, tmp_path)
+
+    with pytest.raises(FormatUnsupportedError) as exec_info:
+        fig = plt.figure()
+        fig.add_subplot().plot(np.random.random(3))
+        figure = Figure(figure=fig, close=True)
+        writer.write({"figure": figure}, key_excluded={"figure": ()})
+    assert unsupported_format in str(exec_info.value)
+    writer.close()
+
+
+def test_key_length(tmp_path):
+    writer = make_output_format("stdout", tmp_path)
+    assert writer.max_length == 36
+    long_prefix = "a" * writer.max_length
+
+    ok_dict = {
+        # keys truncated but not aliased -- OK
+        "a" + long_prefix: 42,
+        "b" + long_prefix: 42,
+        # values truncated and aliased -- also OK
+        "foobar": long_prefix + "a",
+        "fizzbuzz": long_prefix + "b",
+    }
+    ok_excluded = {k: None for k in ok_dict}
+    writer.write(ok_dict, ok_excluded)
+
+    long_key_dict = {
+        long_prefix + "a": 42,
+        "foobar": "sdf",
+        long_prefix + "b": 42,
+    }
+    long_key_excluded = {k: None for k in long_key_dict}
+    # keys truncated and aliased -- not OK
+    with pytest.raises(ValueError, match="Key.*truncated"):
+        writer.write(long_key_dict, long_key_excluded)
+
+    # Just long enough to not be truncated now
+    writer.max_length += 1
+    writer.write(long_key_dict, long_key_excluded)
+
+
+class TimeDelayEnv(gym.Env):
+    """
+    Gym env for testing FPS logging.
+    """
+
+    def __init__(self, delay: float = 0.01):
+        super().__init__()
+        self.delay = delay
+        self.observation_space = gym.spaces.Box(low=-20.0, high=20.0, shape=(4,), dtype=np.float32)
+        self.action_space = gym.spaces.Discrete(2)
+
+    def reset(self):
+        return self.observation_space.sample()
+
+    def step(self, action):
+        time.sleep(self.delay)
+        obs = self.observation_space.sample()
+        return obs, 0.0, True, {}
+
+
+class InMemoryLogger(Logger):
+    """
+    Logger that keeps key/value pairs in memory without any writers.
+    """
+
+    def __init__(self):
+        super().__init__("", [])
+
+    def dump(self, step: int = 0) -> None:
+        pass
+
+
+@pytest.mark.parametrize("algo", [A2C, DQN])
+def test_fps_logger(tmp_path, algo):
+    logger = InMemoryLogger()
+    max_fps = 1000
+    env = TimeDelayEnv(1 / max_fps)
+    model = algo("MlpPolicy", env, verbose=1)
+    model.set_logger(logger)
+
+    # fps should be at most max_fps
+    model.learn(100, log_interval=1)
+    assert max_fps / 10 <= logger.name_to_value["time/fps"] <= max_fps
+
+    # second time, FPS should be the same
+    model.learn(100, log_interval=1)
+    assert max_fps / 10 <= logger.name_to_value["time/fps"] <= max_fps
+
+    # Artificially increase num_timesteps to check
+    # that fps computation is reset at each call to learn()
+    model.num_timesteps = 20_000
+
+    # third time, FPS should be the same
+    model.learn(100, log_interval=1, reset_num_timesteps=False)
+    assert max_fps / 10 <= logger.name_to_value["time/fps"] <= max_fps
+
+
+@pytest.mark.parametrize("algo", [A2C, DQN])
+def test_fps_no_div_zero(algo):
+    """Set time to constant and train algorithm to check no division by zero error.
+
+    Time can appear to be constant during short runs on platforms with low-precision
+    timers. We should avoid division by zero errors e.g. when computing FPS in
+    this situation."""
+    with mock.patch("time.time", lambda: 42.0):
+        with mock.patch("time.time_ns", lambda: 42.0):
+            model = algo("MlpPolicy", "CartPole-v1")
+            model.learn(total_timesteps=100)

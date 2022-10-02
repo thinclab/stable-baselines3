@@ -8,6 +8,11 @@ The aim of this section is to help you doing reinforcement learning experiments.
 It covers general advice about RL (where to start, which algorithm to choose, how to evaluate an algorithm, ...),
 as well as tips and tricks when using a custom environment or implementing an RL algorithm.
 
+.. note::
+
+  We have a `video on YouTube <https://www.youtube.com/watch?v=Ikngt0_DXJg>`_ that covers
+  this section in more details. You can also find the `slides here <https://araffin.github.io/slides/rlvs-tips-tricks/>`_.
+
 
 General advice when using Reinforcement Learning
 ================================================
@@ -17,7 +22,7 @@ TL;DR
 
 1. Read about RL and Stable Baselines3
 2. Do quantitative experiments and hyperparameter tuning if needed
-3. Evaluate the performance using a separate test environment
+3. Evaluate the performance using a separate test environment (remember to check wrappers!)
 4. For better performance, increase the training budget
 
 
@@ -68,18 +73,22 @@ Other method, like ``TRPO`` or ``PPO`` make use of a *trust region* to minimize 
 How to evaluate an RL algorithm?
 --------------------------------
 
+.. note::
+
+  Pay attention to environment wrappers when evaluating your agent and comparing results to others' results. Modifications to episode rewards
+  or lengths may also affect evaluation results which may not be desirable. Check ``evaluate_policy`` helper function in :ref:`Evaluation Helper <eval>` section.
+
 Because most algorithms use exploration noise during training, you need a separate test environment to evaluate the performance
 of your agent at a given time. It is recommended to periodically evaluate your agent for ``n`` test episodes (``n`` is usually between 5 and 20)
 and average the reward per episode to have a good estimate.
 
-As some policy are stochastic by default (e.g. A2C or PPO), you should also try to set `deterministic=True` when calling the `.predict()` method,
-this frequently leads to better performance.
-Looking at the training curve (episode reward function of the timesteps) is a good proxy but underestimates the agent true performance.
-
-
 .. note::
 
 	We provide an ``EvalCallback`` for doing such evaluation. You can read more about it in the :ref:`Callbacks <callbacks>` section.
+
+As some policy are stochastic by default (e.g. A2C or PPO), you should also try to set `deterministic=True` when calling the `.predict()` method,
+this frequently leads to better performance.
+Looking at the training curve (episode reward function of the timesteps) is a good proxy but underestimates the agent true performance.
 
 
 
@@ -115,13 +124,14 @@ Discrete Actions
 Discrete Actions - Single Process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-DQN with extensions (double DQN, prioritized replay, ...) are the recommended algorithms.
-DQN is usually slower to train (regarding wall clock time) but is the most sample efficient (because of its replay buffer).
+``DQN`` with extensions (double DQN, prioritized replay, ...) are the recommended algorithms.
+We notably provide ``QR-DQN`` in our :ref:`contrib repo <sb3_contrib>`.
+``DQN`` is usually slower to train (regarding wall clock time) but is the most sample efficient (because of its replay buffer).
 
 Discrete Actions - Multiprocessed
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You should give a try to PPO or A2C.
+You should give a try to ``PPO`` or ``A2C``.
 
 
 Continuous Actions
@@ -130,14 +140,14 @@ Continuous Actions
 Continuous Actions - Single Process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Current State Of The Art (SOTA) algorithms are ``SAC`` and ``TD3``.
+Current State Of The Art (SOTA) algorithms are ``SAC``, ``TD3`` and ``TQC`` (available in our :ref:`contrib repo <sb3_contrib>`).
 Please use the hyperparameters in the `RL zoo <https://github.com/DLR-RM/rl-baselines3-zoo>`_ for best results.
 
 
 Continuous Actions - Multiprocessed
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Take a look at PPO, TRPO or A2C. Again, don't forget to take the hyperparameters from the `RL zoo <https://github.com/DLR-RM/rl-baselines3-zoo>`_
+Take a look at ``PPO``, ``TRPO`` (available in our :ref:`contrib repo <sb3_contrib>`) or ``A2C``. Again, don't forget to take the hyperparameters from the `RL zoo <https://github.com/DLR-RM/rl-baselines3-zoo>`_
 for continuous actions problems (cf *Bullet* envs).
 
 .. note::
@@ -150,12 +160,12 @@ Goal Environment
 -----------------
 
 If your environment follows the ``GoalEnv`` interface (cf :ref:`HER <her>`), then you should use
-HER + (SAC/TD3/DDPG/DQN) depending on the action space.
+HER + (SAC/TD3/DDPG/DQN/QR-DQN/TQC) depending on the action space.
 
 
 .. note::
 
-	The number of workers is an important hyperparameters for experiments with HER
+	The ``batch_size`` is an important hyperparameter for experiments with :ref:`HER <her>`
 
 
 
@@ -173,6 +183,16 @@ Some basic advice:
 - start with shaped reward (i.e. informative reward) and simplified version of your problem
 - debug with random actions to check that your environment works and follows the gym interface:
 
+Two important things to keep in mind when creating a custom environment is to avoid breaking Markov assumption
+and properly handle termination due to a timeout (maximum number of steps in an episode).
+For instance, if there is some time delay between action and observation (e.g. due to wifi communication), you should give an history of observations
+as input.
+
+Termination due to timeout (max number of steps per episode) needs to be handled separately. You should fill the key in the info dict: ``info["TimeLimit.truncated"] = True``.
+If you are using the gym ``TimeLimit`` wrapper, this will be done automatically.
+You can read `Time Limit in RL <https://arxiv.org/abs/1712.00378>`_ or take a look at the `RL Tips and Tricks video <https://www.youtube.com/watch?v=Ikngt0_DXJg>`_
+for more details.
+
 
 We provide a helper to check that your environment runs without error:
 
@@ -189,15 +209,15 @@ If you want to quickly try a random agent on your environment, you can also do:
 
 .. code-block:: python
 
-	env = YourEnv()
-	obs = env.reset()
-	n_steps = 10
-	for _ in range(n_steps):
-	    # Random action
-	    action = env.action_space.sample()
-	    obs, reward, done, info = env.step(action)
-			if done:
-				obs = env.reset()
+  env = YourEnv()
+  obs = env.reset()
+  n_steps = 10
+  for _ in range(n_steps):
+      # Random action
+      action = env.action_space.sample()
+      obs, reward, done, info = env.step(action)
+      if done:
+          obs = env.reset()
 
 
 **Why should I normalize the action space?**
@@ -231,11 +251,14 @@ We *recommend following those steps to have a working RL algorithm*:
 1. Read the original paper several times
 2. Read existing implementations (if available)
 3. Try to have some "sign of life" on toy problems
-4. Validate the implementation by making it run on harder and harder envs (you can compare results against the RL zoo)
-	You usually need to run hyperparameter optimization for that step.
+4. Validate the implementation by making it run on harder and harder envs (you can compare results against the RL zoo).
+   You usually need to run hyperparameter optimization for that step.
 
-You need to be particularly careful on the shape of the different objects you are manipulating (a broadcast mistake will fail silently cf `issue #75 <https://github.com/hill-a/stable-baselines/pull/76>`_)
+You need to be particularly careful on the shape of the different objects you are manipulating (a broadcast mistake will fail silently cf. `issue #75 <https://github.com/hill-a/stable-baselines/pull/76>`_)
 and when to stop the gradient propagation.
+
+Don't forget to handle termination due to timeout separately (see remark in the custom environment section above),
+you can also take a look at `Issue #284 <https://github.com/DLR-RM/stable-baselines3/issues/284>`_ and `Issue #633 <https://github.com/DLR-RM/stable-baselines3/issues/633>`_.
 
 A personal pick (by @araffin) for environments with gradual difficulty in RL with continuous actions:
 

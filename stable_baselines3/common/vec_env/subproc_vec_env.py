@@ -1,6 +1,6 @@
 import multiprocessing as mp
 from collections import OrderedDict
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, Union
 
 import gym
 import numpy as np
@@ -17,6 +17,9 @@ from stable_baselines3.common.vec_env.base_vec_env import (
 def _worker(
     remote: mp.connection.Connection, parent_remote: mp.connection.Connection, env_fn_wrapper: CloudpickleWrapper
 ) -> None:
+    # Import here to avoid a circular import
+    from stable_baselines3.common.env_util import is_wrapped
+
     parent_remote.close()
     env = env_fn_wrapper.var()
     while True:
@@ -45,6 +48,7 @@ def _worker(
                 remote.send((env.observation_space, env.action_space))
             elif cmd == "env_method":
                 method = getattr(env, data[0])
+                # remote.send(method(*data[1], **data[2]))
                 if type(method) is dict: 
                     remote.send(method) 
                 else: 
@@ -54,6 +58,8 @@ def _worker(
                 remote.send(getattr(env, data))
             elif cmd == "set_attr":
                 remote.send(setattr(env, data[0], data[1]))
+            elif cmd == "is_wrapped":
+                remote.send(is_wrapped(env, data))
             else:
                 raise NotImplementedError(f"`{cmd}` is not implemented in the worker")
         except EOFError:
@@ -123,6 +129,8 @@ class SubprocVecEnv(VecEnv):
         return _flatten_obs(obs, self.observation_space), np.stack(rews), np.stack(dones), infos
 
     def seed(self, seed: Optional[int] = None) -> List[Union[None, int]]:
+        if seed is None:
+            seed = np.random.randint(0, 2**32 - 1)
         for idx, remote in enumerate(self.remotes):
             remote.send(("seed", seed + idx))
         return [remote.recv() for remote in self.remotes]
@@ -175,6 +183,13 @@ class SubprocVecEnv(VecEnv):
             remote.send(("env_method", (method_name, method_args, method_kwargs)))
         return [remote.recv() for remote in target_remotes]
 
+    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
+        """Check if worker environments are wrapped with a given wrapper"""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(("is_wrapped", wrapper_class))
+        return [remote.recv() for remote in target_remotes]
+
     def _get_target_remotes(self, indices: VecEnvIndices) -> List[Any]:
         """
         Get the connection object needed to communicate with the wanted
@@ -208,6 +223,6 @@ def _flatten_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.space
     elif isinstance(space, gym.spaces.Tuple):
         assert isinstance(obs[0], tuple), "non-tuple observation for environment with Tuple observation space"
         obs_len = len(space.spaces)
-        return tuple((np.stack([o[i] for o in obs]) for i in range(obs_len)))
+        return tuple(np.stack([o[i] for o in obs]) for i in range(obs_len))
     else:
         return np.stack(obs)

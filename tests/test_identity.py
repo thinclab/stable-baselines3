@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 
 from stable_baselines3 import A2C, DDPG, DQN, PPO, SAC, TD3
+from stable_baselines3.common.envs import IdentityEnv, IdentityEnvBox, IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
 from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.identity_env import IdentityEnv, IdentityEnvBox, IdentityEnvMultiBinary, IdentityEnvMultiDiscrete
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.vec_env import DummyVecEnv
 
@@ -22,10 +22,13 @@ def test_discrete(model_class, env):
         # DQN only support discrete actions
         if isinstance(env, (IdentityEnvMultiDiscrete, IdentityEnvMultiBinary)):
             return
+    elif model_class == A2C:
+        # slightly higher budget
+        n_steps = 3500
 
     model = model_class("MlpPolicy", env_, gamma=0.4, seed=1, **kwargs).learn(n_steps)
 
-    evaluate_policy(model, env_, n_eval_episodes=20, reward_threshold=90)
+    evaluate_policy(model, env_, n_eval_episodes=20, reward_threshold=90, warn=False)
     obs = env.reset()
 
     assert np.shape(model.predict(obs)[0]) == np.shape(obs)
@@ -45,4 +48,4 @@ def test_continuous(model_class):
 
     model = model_class("MlpPolicy", env, **kwargs).learn(n_steps)
 
-    evaluate_policy(model, env, n_eval_episodes=20, reward_threshold=90)
+    evaluate_policy(model, env, n_eval_episodes=20, reward_threshold=90, warn=False)

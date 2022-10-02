@@ -3,18 +3,22 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Stable Baselines3 docs! - RL Baselines Made Easy
-===========================================================
+Stable-Baselines3 Docs - Reliable Reinforcement Learning Implementations
+========================================================================
 
-`Stable Baselines3 <https://github.com/DLR-RM/stable-baselines3>`_ is a set of improved implementations of reinforcement learning algorithms in PyTorch.
+`Stable Baselines3 (SB3) <https://github.com/DLR-RM/stable-baselines3>`_ is a set of reliable implementations of reinforcement learning algorithms in PyTorch.
 It is the next major version of `Stable Baselines <https://github.com/hill-a/stable-baselines>`_.
 
 
 Github repository: https://github.com/DLR-RM/stable-baselines3
 
-RL Baselines3 Zoo (collection of pre-trained agents): https://github.com/DLR-RM/rl-baselines3-zoo
+Paper: https://jmlr.org/papers/volume22/20-1364/20-1364.pdf
 
-RL Baselines3 Zoo also offers a simple interface to train, evaluate agents and do hyperparameter tuning.
+RL Baselines3 Zoo (training framework for SB3): https://github.com/DLR-RM/rl-baselines3-zoo
+
+RL Baselines3 Zoo provides a collection of pre-trained agents, scripts for training, evaluating agents, tuning hyperparameters, plotting results and recording videos.
+
+SB3 Contrib (experimental RL code, latest algorithms): https://github.com/Stable-Baselines-Team/stable-baselines3-contrib
 
 
 Main Features
@@ -44,7 +48,9 @@ Main Features
    guide/custom_policy
    guide/callbacks
    guide/tensorboard
+   guide/integrations
    guide/rl_zoo
+   guide/sb3_contrib
    guide/imitation
    guide/migration
    guide/checking_nan
@@ -72,6 +78,7 @@ Main Features
 
   common/atari_wrappers
   common/env_util
+  common/envs
   common/distributions
   common/evaluation
   common/env_checker
@@ -94,14 +101,16 @@ To cite this project in publications:
 
 .. code-block:: bibtex
 
-    @misc{stable-baselines3,
-      author = {Raffin, Antonin and Hill, Ashley and Ernestus, Maximilian and Gleave, Adam and Kanervisto, Anssi and Dormann, Noah},
-      title = {Stable Baselines3},
-      year = {2019},
-      publisher = {GitHub},
-      journal = {GitHub repository},
-      howpublished = {\url{https://github.com/DLR-RM/stable-baselines3}},
-    }
+  @article{stable-baselines3,
+    author  = {Antonin Raffin and Ashley Hill and Adam Gleave and Anssi Kanervisto and Maximilian Ernestus and Noah Dormann},
+    title   = {Stable-Baselines3: Reliable Reinforcement Learning Implementations},
+    journal = {Journal of Machine Learning Research},
+    year    = {2021},
+    volume  = {22},
+    number  = {268},
+    pages   = {1-8},
+    url     = {http://jmlr.org/papers/v22/20-1364.html}
+  }
 
 Contributing
 ------------

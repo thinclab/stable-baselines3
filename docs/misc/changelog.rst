@@ -3,6 +3,543 @@
 Changelog
 ==========
 
+Release 1.6.1a0 (WIP)
+---------------------------
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+
+New Features:
+^^^^^^^^^^^^^
+
+SB3-Contrib
+^^^^^^^^^^^
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed the issue that ``predict`` does not always return action as ``np.ndarray`` (@qgallouedec)
+- Fixed division by zero error when computing FPS when a small number of time has elapsed in operating systems with low-precision timers.
+- Added multidimensional action space support (@qgallouedec)
+- Fixed missing verbose parameter passing in the ``EvalCallback`` constructor (@burakdmb)
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Fixed ``DictReplayBuffer.next_observations`` typing (@qgallouedec)
+
+- Added support for ``device="auto"`` in buffers and made it default (@qgallouedec)
+
+Documentation:
+^^^^^^^^^^^^^^
+- Fixed typo in docstring "nature" -> "Nature" (@Melanol)
+- Added info on split tensorboard logs into (@Melanol)
+- Fixed typo in ppo doc (@francescoluciano)
+- Fixed typo in install doc(@jlp-ue)
+
+
+Release 1.6.0 (2022-07-11)
+---------------------------
+
+**Recurrent PPO (PPO LSTM), better defaults for learning from pixels with SAC/TD3**
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- Changed the way policy "aliases" are handled ("MlpPolicy", "CnnPolicy", ...), removing the former
+  ``register_policy`` helper, ``policy_base`` parameter and using ``policy_aliases`` static attributes instead (@Gregwar)
+- SB3 now requires PyTorch >= 1.11
+- Changed the default network architecture when using ``CnnPolicy`` or ``MultiInputPolicy`` with SAC or DDPG/TD3,
+  ``share_features_extractor`` is now set to False by default and the ``net_arch=[256, 256]`` (instead of ``net_arch=[]`` that was before)
+
+New Features:
+^^^^^^^^^^^^^
+
+SB3-Contrib
+^^^^^^^^^^^
+- Added Recurrent PPO (PPO LSTM). See https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/pull/53
+
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed saving and loading large policies greater than 2GB (@jkterry1, @ycheng517)
+- Fixed final goal selection strategy that did not sample the final achieved goal (@qgallouedec)
+- Fixed a bug with special characters in the tensorboard log name (@quantitative-technologies)
+- Fixed a bug in ``DummyVecEnv``'s and ``SubprocVecEnv``'s seeding function. None value was unchecked (@ScheiklP)
+- Fixed a bug where ``EvalCallback`` would crash when trying to synchronize ``VecNormalize`` stats when observation normalization was disabled
+- Added a check for unbounded actions
+- Fixed issues due to newer version of protobuf (tensorboard) and sphinx
+- Fix exception causes all over the codebase (@cool-RR)
+- Prohibit simultaneous use of optimize_memory_usage and handle_timeout_termination due to a bug (@MWeltevrede)
+- Fixed a bug in ``kl_divergence`` check that would fail when using numpy arrays with MultiCategorical distribution
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Upgraded to Python 3.7+ syntax using ``pyupgrade``
+- Removed redundant double-check for nested observations from ``BaseAlgorithm._wrap_env`` (@TibiGG)
+
+Documentation:
+^^^^^^^^^^^^^^
+- Added link to gym doc and gym env checker
+- Fix typo in PPO doc (@bcollazo)
+- Added link to PPO ICLR blog post
+- Added remark about breaking Markov assumption and timeout handling
+- Added doc about MLFlow integration via custom logger (@git-thor)
+- Updated Huggingface integration doc
+- Added copy button for code snippets
+- Added doc about EnvPool and Isaac Gym support
+
+
+Release 1.5.0 (2022-03-25)
+---------------------------
+
+**Bug fixes, early stopping callback**
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- Switched minimum Gym version to 0.21.0.
+
+New Features:
+^^^^^^^^^^^^^
+- Added ``StopTrainingOnNoModelImprovement`` to callback collection (@caburu)
+- Makes the length of keys and values in ``HumanOutputFormat`` configurable,
+  depending on desired maximum width of output.
+- Allow PPO to turn of advantage normalization (see `PR #763 <https://github.com/DLR-RM/stable-baselines3/pull/763>`_) @vwxyzjn
+
+SB3-Contrib
+^^^^^^^^^^^
+- coming soon: Cross Entropy Method, see https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/pull/62
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed a bug in ``VecMonitor``. The monitor did not consider the ``info_keywords`` during stepping (@ScheiklP)
+- Fixed a bug in ``HumanOutputFormat``. Distinct keys truncated to the same prefix would overwrite each others value,
+  resulting in only one being output. This now raises an error (this should only affect a small fraction of use cases
+  with very long keys.)
+- Routing all the ``nn.Module`` calls through implicit rather than explict forward as per pytorch guidelines (@manuel-delverme)
+- Fixed a bug in ``VecNormalize`` where error occurs when ``norm_obs`` is set to False for environment with dictionary observation  (@buoyancy99)
+- Set default ``env`` argument to ``None`` in ``HerReplayBuffer.sample`` (@qgallouedec)
+- Fix ``batch_size`` typing in ``DQN`` (@qgallouedec)
+- Fixed sample normalization in ``DictReplayBuffer`` (@qgallouedec)
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Fixed pytest warnings
+- Removed parameter ``remove_time_limit_termination`` in off policy algorithms since it was dead code (@Gregwar)
+
+Documentation:
+^^^^^^^^^^^^^^
+- Added doc on Hugging Face integration (@simoninithomas)
+- Added furuta pendulum project to project list (@armandpl)
+- Fix indentation 2 spaces to 4 spaces in custom env documentation example (@Gautam-J)
+- Update MlpExtractor docstring (@gianlucadecola)
+- Added explanation of the logger output
+- Update ``Directly Accessing The Summary Writer`` in tensorboard integration (@xy9485)
+
+Release 1.4.0 (2022-01-18)
+---------------------------
+
+*TRPO, ARS and multi env training for off-policy algorithms*
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- Dropped python 3.6 support (as announced in previous release)
+- Renamed ``mask`` argument of the ``predict()`` method to ``episode_start`` (used with RNN policies only)
+- local variables ``action``, ``done`` and ``reward`` were renamed to their plural form for offpolicy algorithms (``actions``, ``dones``, ``rewards``),
+  this may affect custom callbacks.
+- Removed ``episode_reward`` field from ``RolloutReturn()`` type
+
+
+.. warning::
+
+    An update to the ``HER`` algorithm is planned to support multi-env training and remove the max episode length constrain.
+    (see `PR #704 <https://github.com/DLR-RM/stable-baselines3/pull/704>`_)
+    This will be a backward incompatible change (model trained with previous version of ``HER`` won't work with the new version).
+
+
+
+New Features:
+^^^^^^^^^^^^^
+- Added ``norm_obs_keys`` param for ``VecNormalize`` wrapper to configure which observation keys to normalize (@kachayev)
+- Added experimental support to train off-policy algorithms with multiple envs (note: ``HerReplayBuffer`` currently not supported)
+- Handle timeout termination properly for on-policy algorithms (when using ``TimeLimit``)
+- Added ``skip`` option to ``VecTransposeImage`` to skip transforming the channel order when the heuristic is wrong
+- Added ``copy()`` and ``combine()`` methods to ``RunningMeanStd``
+
+SB3-Contrib
+^^^^^^^^^^^
+- Added Trust Region Policy Optimization (TRPO) (@cyprienc)
+- Added Augmented Random Search (ARS) (@sgillen)
+- Coming soon: PPO LSTM, see https://github.com/Stable-Baselines-Team/stable-baselines3-contrib/pull/53
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed a bug where ``set_env()`` with ``VecNormalize`` would result in an error with off-policy algorithms (thanks @cleversonahum)
+- FPS calculation is now performed based on number of steps performed during last ``learn`` call, even when ``reset_num_timesteps`` is set to ``False`` (@kachayev)
+- Fixed evaluation script for recurrent policies (experimental feature in SB3 contrib)
+- Fixed a bug where the observation would be incorrectly detected as non-vectorized instead of throwing an error
+- The env checker now properly checks and warns about potential issues for continuous action spaces when the boundaries are too small or when the dtype is not float32
+- Fixed a bug in ``VecFrameStack`` with channel first image envs, where the terminal observation would be wrongly created.
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Added a warning in the env checker when not using ``np.float32`` for continuous actions
+- Improved test coverage and error message when checking shape of observation
+- Added ``newline="\n"`` when opening CSV monitor files so that each line ends with ``\r\n`` instead of ``\r\r\n`` on Windows while Linux environments are not affected (@hsuehch)
+- Fixed ``device`` argument inconsistency (@qgallouedec)
+
+Documentation:
+^^^^^^^^^^^^^^
+- Add drivergym to projects page (@theDebugger811)
+- Add highway-env to projects page (@eleurent)
+- Add tactile-gym to projects page (@ac-93)
+- Fix indentation in the RL tips page (@cove9988)
+- Update GAE computation docstring
+- Add documentation on exporting to TFLite/Coral
+- Added JMLR paper and updated citation
+- Added link to RL Tips and Tricks video
+- Updated ``BaseAlgorithm.load`` docstring (@Demetrio92)
+- Added a note on ``load`` behavior in the examples (@Demetrio92)
+- Updated SB3 Contrib doc
+- Fixed A2C and migration guide guidance on how to set epsilon with RMSpropTFLike (@thomasgubler)
+- Fixed custom policy documentation (@IperGiove)
+- Added doc on Weights & Biases integration
+
+Release 1.3.0 (2021-10-23)
+---------------------------
+
+*Bug fixes and improvements for the user*
+
+.. warning::
+
+  This version will be the last one supporting Python 3.6 (end of life in Dec 2021).
+  We highly recommended you to upgrade to Python >= 3.7.
+
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- ``sde_net_arch`` argument in policies is deprecated and will be removed in a future version.
+- ``_get_latent`` (``ActorCriticPolicy``) was removed
+- All logging keys now use underscores instead of spaces (@timokau). Concretely this changes:
+
+    - ``time/total timesteps`` to ``time/total_timesteps`` for off-policy algorithms (PPO and A2C) and the eval callback (on-policy algorithms already used the underscored version),
+    - ``rollout/exploration rate`` to ``rollout/exploration_rate`` and
+    - ``rollout/success rate`` to ``rollout/success_rate``.
+
+
+New Features:
+^^^^^^^^^^^^^
+- Added methods ``get_distribution`` and ``predict_values`` for ``ActorCriticPolicy`` for A2C/PPO/TRPO (@cyprienc)
+- Added methods ``forward_actor`` and ``forward_critic`` for ``MlpExtractor``
+- Added ``sb3.get_system_info()`` helper function to gather version information relevant to SB3 (e.g., Python and PyTorch version)
+- Saved models now store system information where agent was trained, and load functions have ``print_system_info`` parameter to help debugging load issues
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed ``dtype`` of observations for ``SimpleMultiObsEnv``
+- Allow `VecNormalize` to wrap discrete-observation environments to normalize reward
+  when observation normalization is disabled
+- Fixed a bug where ``DQN`` would throw an error when using ``Discrete`` observation and stochastic actions
+- Fixed a bug where sub-classed observation spaces could not be used
+- Added ``force_reset`` argument to ``load()`` and ``set_env()`` in order to be able to call ``learn(reset_num_timesteps=False)`` with a new environment
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Cap gym max version to 0.19 to avoid issues with atari-py and other breaking changes
+- Improved error message when using dict observation with the wrong policy
+- Improved error message when using ``EvalCallback`` with two envs not wrapped the same way.
+- Added additional infos about supported python version for PyPi in ``setup.py``
+
+Documentation:
+^^^^^^^^^^^^^^
+- Add Rocket League Gym to list of supported projects (@AechPro)
+- Added gym-electric-motor to project page (@wkirgsn)
+- Added policy-distillation-baselines to project page (@CUN-bjy)
+- Added ONNX export instructions (@batu)
+- Update read the doc env (fixed ``docutils`` issue)
+- Fix PPO environment name (@IljaAvadiev)
+- Fix custom env doc and add env registration example
+- Update algorithms from SB3 Contrib
+- Use underscores for numeric literals in examples to improve clarity
+
+Release 1.2.0 (2021-09-03)
+---------------------------
+
+**Hotfix for VecNormalize, training/eval mode support**
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- SB3 now requires PyTorch >= 1.8.1
+- ``VecNormalize`` ``ret`` attribute was renamed to ``returns``
+
+New Features:
+^^^^^^^^^^^^^
+
+Bug Fixes:
+^^^^^^^^^^
+- Hotfix for ``VecNormalize`` where the observation filter was not updated at reset (thanks @vwxyzjn)
+- Fixed model predictions when using batch normalization and dropout layers by calling ``train()`` and ``eval()`` (@davidblom603)
+- Fixed model training for DQN, TD3 and SAC so that their target nets always remain in evaluation mode (@ayeright)
+- Passing ``gradient_steps=0`` to an off-policy algorithm will result in no gradient steps being taken (vs as many gradient steps as steps done in the environment
+  during the rollout in previous versions)
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Enabled Python 3.9 in GitHub CI
+- Fixed type annotations
+- Refactored ``predict()`` by moving the preprocessing to ``obs_to_tensor()`` method
+
+Documentation:
+^^^^^^^^^^^^^^
+- Updated multiprocessing example
+- Added example of ``VecEnvWrapper``
+- Added a note about logging to tensorboard more often
+- Added warning about simplicity of examples and link to RL zoo (@MihaiAnca13)
+
+
+Release 1.1.0 (2021-07-01)
+---------------------------
+
+**Dict observation support, timeout handling and refactored HER buffer**
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- All customs environments (e.g. the ``BitFlippingEnv`` or ``IdentityEnv``) were moved to ``stable_baselines3.common.envs`` folder
+- Refactored ``HER`` which is now the ``HerReplayBuffer`` class that can be passed to any off-policy algorithm
+- Handle timeout termination properly for off-policy algorithms (when using ``TimeLimit``)
+- Renamed ``_last_dones`` and ``dones`` to ``_last_episode_starts`` and ``episode_starts`` in ``RolloutBuffer``.
+- Removed ``ObsDictWrapper`` as ``Dict`` observation spaces are now supported
+
+.. code-block:: python
+
+  her_kwargs = dict(n_sampled_goal=2, goal_selection_strategy="future", online_sampling=True)
+  # SB3 < 1.1.0
+  # model = HER("MlpPolicy", env, model_class=SAC, **her_kwargs)
+  # SB3 >= 1.1.0:
+  model = SAC("MultiInputPolicy", env, replay_buffer_class=HerReplayBuffer, replay_buffer_kwargs=her_kwargs)
+
+- Updated the KL Divergence estimator in the PPO algorithm to be positive definite and have lower variance (@09tangriro)
+- Updated the KL Divergence check in the PPO algorithm to be before the gradient update step rather than after end of epoch (@09tangriro)
+- Removed parameter ``channels_last`` from ``is_image_space`` as it can be inferred.
+- The logger object is now an attribute ``model.logger`` that be set by the user using ``model.set_logger()``
+- Changed the signature of ``logger.configure`` and ``utils.configure_logger``, they now return a ``Logger`` object
+- Removed ``Logger.CURRENT`` and ``Logger.DEFAULT``
+- Moved ``warn(), debug(), log(), info(), dump()`` methods to the ``Logger`` class
+- ``.learn()`` now throws an import error when the user tries to log to tensorboard but the package is not installed
+
+New Features:
+^^^^^^^^^^^^^
+- Added support for single-level ``Dict`` observation space (@JadenTravnik)
+- Added ``DictRolloutBuffer`` ``DictReplayBuffer`` to support dictionary observations (@JadenTravnik)
+- Added ``StackedObservations`` and ``StackedDictObservations`` that are used within ``VecFrameStack``
+- Added simple 4x4 room Dict test environments
+- ``HerReplayBuffer`` now supports ``VecNormalize`` when ``online_sampling=False``
+- Added `VecMonitor <https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/vec_env/vec_monitor.py>`_ and
+  `VecExtractDictObs <https://github.com/DLR-RM/stable-baselines3/blob/master/stable_baselines3/common/vec_env/vec_extract_dict_obs.py>`_ wrappers
+  to handle gym3-style vectorized environments (@vwxyzjn)
+- Ignored the terminal observation if the it is not provided by the environment
+  such as the gym3-style vectorized environments. (@vwxyzjn)
+- Added policy_base as input to the OnPolicyAlgorithm for more flexibility (@09tangriro)
+- Added support for image observation when using ``HER``
+- Added ``replay_buffer_class`` and ``replay_buffer_kwargs`` arguments to off-policy algorithms
+- Added ``kl_divergence`` helper for ``Distribution`` classes (@09tangriro)
+- Added support for vector environments with ``num_envs > 1`` (@benblack769)
+- Added ``wrapper_kwargs`` argument to ``make_vec_env`` (@amy12xx)
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed potential issue when calling off-policy algorithms with default arguments multiple times (the size of the replay buffer would be the same)
+- Fixed loading of ``ent_coef`` for ``SAC`` and ``TQC``, it was not optimized anymore (thanks @Atlis)
+- Fixed saving of ``A2C`` and ``PPO`` policy when using gSDE (thanks @liusida)
+- Fixed a bug where no output would be shown even if ``verbose>=1`` after passing ``verbose=0`` once
+- Fixed observation buffers dtype in DictReplayBuffer (@c-rizz)
+- Fixed EvalCallback tensorboard logs being logged with the incorrect timestep. They are now written with the timestep at which they were recorded. (@skandermoalla)
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Added ``flake8-bugbear`` to tests dependencies to find likely bugs
+- Updated ``env_checker`` to reflect support of dict observation spaces
+- Added Code of Conduct
+- Added tests for GAE and lambda return computation
+- Updated distribution entropy test (thanks @09tangriro)
+- Added sanity check ``batch_size > 1`` in PPO to avoid NaN in advantage normalization
+
+Documentation:
+^^^^^^^^^^^^^^
+- Added gym pybullet drones project (@JacopoPan)
+- Added link to SuperSuit in projects (@justinkterry)
+- Fixed DQN example (thanks @ltbd78)
+- Clarified channel-first/channel-last recommendation
+- Update sphinx environment installation instructions (@tom-doerr)
+- Clarified pip installation in Zsh (@tom-doerr)
+- Clarified return computation for on-policy algorithms (TD(lambda) estimate was used)
+- Added example for using ``ProcgenEnv``
+- Added note about advanced custom policy example for off-policy algorithms
+- Fixed DQN unicode checkmarks
+- Updated migration guide (@juancroldan)
+- Pinned ``docutils==0.16`` to avoid issue with rtd theme
+- Clarified callback ``save_freq`` definition
+- Added doc on how to pass a custom logger
+- Remove recurrent policies from ``A2C`` docs (@bstee615)
+
+
+Release 1.0 (2021-03-15)
+------------------------
+
+**First Major Version**
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- Removed ``stable_baselines3.common.cmd_util`` (already deprecated), please use ``env_util`` instead
+
+.. warning::
+
+    A refactoring of the ``HER`` algorithm is planned together with support for dictionary observations
+    (see `PR #243 <https://github.com/DLR-RM/stable-baselines3/pull/243>`_ and `#351 <https://github.com/DLR-RM/stable-baselines3/pull/351>`_)
+    This will be a backward incompatible change (model trained with previous version of ``HER`` won't work with the new version).
+
+
+New Features:
+^^^^^^^^^^^^^
+- Added support for ``custom_objects`` when loading models
+
+
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed a bug with ``DQN`` predict method when using ``deterministic=False`` with image space
+
+Documentation:
+^^^^^^^^^^^^^^
+- Fixed examples
+- Added new project using SB3: rl_reach (@PierreExeter)
+- Added note about slow-down when switching to PyTorch
+- Add a note on continual learning and resetting environment
+
+Others:
+^^^^^^^
+- Updated RL-Zoo to reflect the fact that is it more than a collection of trained agents
+- Added images to illustrate the training loop and custom policies (created with https://excalidraw.com/)
+- Updated the custom policy section
+
+
+Pre-Release 0.11.1 (2021-02-27)
+-------------------------------
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed a bug where ``train_freq`` was not properly converted when loading a saved model
+
+
+
+Pre-Release 0.11.0 (2021-02-27)
+-------------------------------
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- ``evaluate_policy`` now returns rewards/episode lengths from a ``Monitor`` wrapper if one is present,
+  this allows to return the unnormalized reward in the case of Atari games for instance.
+- Renamed ``common.vec_env.is_wrapped`` to ``common.vec_env.is_vecenv_wrapped`` to avoid confusion
+  with the new ``is_wrapped()`` helper
+- Renamed ``_get_data()`` to ``_get_constructor_parameters()`` for policies (this affects independent saving/loading of policies)
+- Removed ``n_episodes_rollout`` and merged it with ``train_freq``, which now accepts a tuple ``(frequency, unit)``:
+- ``replay_buffer`` in ``collect_rollout`` is no more optional
+
+.. code-block:: python
+
+  # SB3 < 0.11.0
+  # model = SAC("MlpPolicy", env, n_episodes_rollout=1, train_freq=-1)
+  # SB3 >= 0.11.0:
+  model = SAC("MlpPolicy", env, train_freq=(1, "episode"))
+
+
+
+New Features:
+^^^^^^^^^^^^^
+- Add support for ``VecFrameStack`` to stack on first or last observation dimension, along with
+  automatic check for image spaces.
+- ``VecFrameStack`` now has a ``channels_order`` argument to tell if observations should be stacked
+  on the first or last observation dimension (originally always stacked on last).
+- Added ``common.env_util.is_wrapped`` and ``common.env_util.unwrap_wrapper`` functions for checking/unwrapping
+  an environment for specific wrapper.
+- Added ``env_is_wrapped()`` method for ``VecEnv`` to check if its environments are wrapped
+  with given Gym wrappers.
+- Added ``monitor_kwargs`` parameter to ``make_vec_env`` and ``make_atari_env``
+- Wrap the environments automatically with a ``Monitor`` wrapper when possible.
+- ``EvalCallback`` now logs the success rate when available (``is_success`` must be present in the info dict)
+- Added new wrappers to log images and matplotlib figures to tensorboard. (@zampanteymedio)
+- Add support for text records to ``Logger``. (@lorenz-h)
+
+
+Bug Fixes:
+^^^^^^^^^^
+- Fixed bug where code added VecTranspose on channel-first image environments (thanks @qxcv)
+- Fixed ``DQN`` predict method when using single ``gym.Env`` with ``deterministic=False``
+- Fixed bug that the arguments order of ``explained_variance()`` in ``ppo.py`` and ``a2c.py`` is not correct (@thisray)
+- Fixed bug where full ``HerReplayBuffer`` leads to an index error. (@megan-klaiber)
+- Fixed bug where replay buffer could not be saved if it was too big (> 4 Gb) for python<3.8 (thanks @hn2)
+- Added informative ``PPO`` construction error in edge-case scenario where ``n_steps * n_envs = 1`` (size of rollout buffer),
+  which otherwise causes downstream breaking errors in training (@decodyng)
+- Fixed discrete observation space support when using multiple envs with A2C/PPO (thanks @ardabbour)
+- Fixed a bug for TD3 delayed update (the update was off-by-one and not delayed when ``train_freq=1``)
+- Fixed numpy warning (replaced ``np.bool`` with ``bool``)
+- Fixed a bug where ``VecNormalize`` was not normalizing the terminal observation
+- Fixed a bug where ``VecTranspose`` was not transposing the terminal observation
+- Fixed a bug where the terminal observation stored in the replay buffer was not the right one for off-policy algorithms
+- Fixed a bug where ``action_noise`` was not used when using ``HER`` (thanks @ShangqunYu)
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Add more issue templates
+- Add signatures to callable type annotations (@ernestum)
+- Improve error message in ``NatureCNN``
+- Added checks for supported action spaces to improve clarity of error messages for the user
+- Renamed variables in the ``train()`` method of ``SAC``, ``TD3`` and ``DQN`` to match SB3-Contrib.
+- Updated docker base image to Ubuntu 18.04
+- Set tensorboard min version to 2.2.0 (earlier version are apparently not working with PyTorch)
+- Added warning for ``PPO`` when ``n_steps * n_envs`` is not a multiple of ``batch_size`` (last mini-batch truncated) (@decodyng)
+- Removed some warnings in the tests
+
+Documentation:
+^^^^^^^^^^^^^^
+- Updated algorithm table
+- Minor docstring improvements regarding rollout (@stheid)
+- Fix migration doc for ``A2C`` (epsilon parameter)
+- Fix ``clip_range`` docstring
+- Fix duplicated parameter in ``EvalCallback`` docstring (thanks @tfederico)
+- Added example of learning rate schedule
+- Added SUMO-RL as example project (@LucasAlegre)
+- Fix docstring of classes in atari_wrappers.py which were inside the constructor (@LucasAlegre)
+- Added SB3-Contrib page
+- Fix bug in the example code of DQN (@AptX395)
+- Add example on how to access the tensorboard summary writer directly. (@lorenz-h)
+- Updated migration guide
+- Updated custom policy doc (separate policy architecture recommended)
+- Added a note about OpenCV headless version
+- Corrected typo on documentation (@mschweizer)
+- Provide the environment when loading the model in the examples (@lorepieri8)
+
 
 Pre-Release 0.10.0 (2020-10-28)
 -------------------------------
@@ -449,16 +986,19 @@ Maintainers
 -----------
 
 Stable-Baselines3 is currently maintained by `Antonin Raffin`_ (aka `@araffin`_), `Ashley Hill`_ (aka @hill-a),
-`Maximilian Ernestus`_ (aka @erniejunior), `Adam Gleave`_ (`@AdamGleave`_) and `Anssi Kanervisto`_ (aka `@Miffyli`_).
+`Maximilian Ernestus`_ (aka @ernestum), `Adam Gleave`_ (`@AdamGleave`_), `Anssi Kanervisto`_ (aka `@Miffyli`_)
+and `Quentin Gallouédec`_ (aka @qgallouedec).
 
 .. _Ashley Hill: https://github.com/hill-a
 .. _Antonin Raffin: https://araffin.github.io/
-.. _Maximilian Ernestus: https://github.com/erniejunior
+.. _Maximilian Ernestus: https://github.com/ernestum
 .. _Adam Gleave: https://gleave.me/
 .. _@araffin: https://github.com/araffin
 .. _@AdamGleave: https://github.com/adamgleave
 .. _Anssi Kanervisto: https://github.com/Miffyli
 .. _@Miffyli: https://github.com/Miffyli
+.. _Quentin Gallouédec: https://gallouedec.com/
+.. _@qgallouedec: https://github.com/qgallouedec
 
 
 
@@ -473,7 +1013,15 @@ And all the contributors:
 @EliasHasle @mrakgr @Bleyddyn @antoine-galataud @junhyeokahn @AdamGleave @keshaviyengar @tperol
 @XMaster96 @kantneel @Pastafarianist @GerardMaggiolino @PatrickWalter214 @yutingsz @sc420 @Aaahh @billtubbs
 @Miffyli @dwiel @miguelrass @qxcv @jaberkow @eavelardev @ruifeng96150 @pedrohbtp @srivatsankrishnan @evilsocket
-@MarvineGothic @jdossgollin @SyllogismRXS @rusu24edward @jbulow @Antymon @seheevic @justinkterry @edbeeching
+@MarvineGothic @jdossgollin @stheid @SyllogismRXS @rusu24edward @jbulow @Antymon @seheevic @justinkterry @edbeeching
 @flodorner @KuKuXia @NeoExtended @PartiallyTyped @mmcenta @richardwu @kinalmehta @rolandgvc @tkelestemur @mloo3
 @tirafesi @blurLake @koulakis @joeljosephjin @shwang @rk37 @andyshih12 @RaphaelWag @xicocaio
-@diditforlulz273 @liorcohen5 @ManifoldFR @mloo3 @SwamyDev @wmmc88 @megan-klaiber
+@diditforlulz273 @liorcohen5 @ManifoldFR @mloo3 @SwamyDev @wmmc88 @megan-klaiber @thisray
+@tfederico @hn2 @LucasAlegre @AptX395 @zampanteymedio @JadenTravnik @decodyng @ardabbour @lorenz-h @mschweizer @lorepieri8 @vwxyzjn
+@ShangqunYu @PierreExeter @JacopoPan @ltbd78 @tom-doerr @Atlis @liusida @09tangriro @amy12xx @juancroldan
+@benblack769 @bstee615 @c-rizz @skandermoalla @MihaiAnca13 @davidblom603 @ayeright @cyprienc
+@wkirgsn @AechPro @CUN-bjy @batu @IljaAvadiev @timokau @kachayev @cleversonahum
+@eleurent @ac-93 @cove9988 @theDebugger811 @hsuehch @Demetrio92 @thomasgubler @IperGiove @ScheiklP
+@simoninithomas @armandpl @manuel-delverme @Gautam-J @gianlucadecola @buoyancy99 @caburu @xy9485
+@Gregwar @ycheng517 @quantitative-technologies @bcollazo @git-thor @TibiGG @cool-RR @MWeltevrede
+@Melanol @qgallouedec @francescoluciano @jlp-ue @burakdmb
